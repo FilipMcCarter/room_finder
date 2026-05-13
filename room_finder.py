@@ -1,42 +1,20 @@
-#!/usr/bin/env python3
-
 import os
-# Force Python to print logs immediately in Render
-os.environ["PYTHONUNBUFFERED"] = "1"
-
 import requests
 import cloudscraper
 from bs4 import BeautifulSoup
-import time
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
-class DummyHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running")
-
-def run_server():
-    server = HTTPServer(("0.0.0.0", 10000), DummyHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_server, daemon=True).start()
+import sys
 
 # -------- CONFIG --------
 PARARIUS_URL = "https://www.pararius.com/rooms/eindhoven/0-800"
 KAMERNET_URL = "https://kamernet.nl/en/for-rent/rooms-eindhoven"
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/XXXXX/YYYYY"  # <-- MAKE SURE THIS IS YOUR REAL WEBHOOK
+# Pull webhook securely from GitHub Secrets
+DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
+if not DISCORD_WEBHOOK:
+    print("Error: DISCORD_WEBHOOK environment variable not set.")
+    sys.exit(1)
 
 SEEN_FILE = "seen_links.txt"
-
-# Create a scraper that bypasses basic Cloudflare/bot protections
-scraper = cloudscraper.create_scraper(browser={
-    'browser': 'chrome',
-    'platform': 'windows',
-    'desktop': True
-})
 
 # -------- LOAD SEEN --------
 if os.path.exists(SEEN_FILE):
@@ -45,7 +23,6 @@ if os.path.exists(SEEN_FILE):
 else:
     seen = set()
 
-# -------- SAVE LINK --------
 def save_link(link):
     with open(SEEN_FILE, "a") as f:
         f.write(link + "\n")
@@ -56,31 +33,20 @@ def send(title, price, link, source):
     try:
         res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
         if res.status_code == 204:
-            print(f"Successfully sent to Discord: {title}", flush=True)
+            print(f"Successfully sent to Discord: {title}")
         else:
-            print(f"Discord error: {res.status_code} - {res.text}", flush=True)
+            print(f"Discord error: {res.status_code} - {res.text}")
     except Exception as e:
-        print(f"Discord exception: {e}", flush=True)
-
-def send_test_message():
-    try:
-        msg = "Bot successfully started on Render! (v2)"
-        res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
-        if res.status_code == 204:
-            print("Test message successfully sent to Discord.", flush=True)
-        else:
-            print(f"Failed to send test message. Status: {res.status_code}", flush=True)
-    except Exception as e:
-        print(f"Test message exception: {e}", flush=True)
+        print(f"Discord exception: {e}")
 
 # -------- PARARIUS --------
-def check_pararius():
+def check_pararius(scraper):
     new_items = []
-    print("Checking Pararius...", flush=True)
+    print("Checking Pararius...")
     res = scraper.get(PARARIUS_URL)
     
     if res.status_code != 200:
-        print(f"Pararius blocked the request! Status Code: {res.status_code}", flush=True)
+        print(f"Pararius blocked the request! Status Code: {res.status_code}")
         return new_items
 
     soup = BeautifulSoup(res.text, "html.parser")
@@ -108,13 +74,13 @@ def check_pararius():
     return new_items
 
 # -------- KAMERNET --------
-def check_kamernet():
+def check_kamernet(scraper):
     new_items = []
-    print("Checking Kamernet...", flush=True)
+    print("Checking Kamernet...")
     res = scraper.get(KAMERNET_URL)
     
     if res.status_code != 200:
-        print(f"Kamernet blocked the request! Status Code: {res.status_code}", flush=True)
+        print(f"Kamernet blocked the request! Status Code: {res.status_code}")
         return new_items
 
     soup = BeautifulSoup(res.text, "html.parser")
@@ -136,27 +102,25 @@ def check_kamernet():
 
     return new_items
 
-# -------- MAIN LOOP --------
-print("Bot script initialized. Sending test message...", flush=True)
-send_test_message()
-
-while True:
+# -------- MAIN EXECUTION --------
+def main():
+    print("Initializing scraper...")
     try:
-        found = []
-
-        found += check_pararius()
-        time.sleep(2)
-        found += check_kamernet()
-
-        if found:
-            for title, price, link, source in found:
-                print(f"Found [{source}] {title} | {price}", flush=True)
-                send(title, price, link, source)
-                time.sleep(1)
-        else:
-            print("No new listings found this cycle.", flush=True)
-
+        scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
     except Exception as e:
-        print(f"Major Error: {e}", flush=True)
+        print(f"Failed to initialize scraper: {e}")
+        sys.exit(1)
 
-    time.sleep(180)
+    found = []
+    found += check_pararius(scraper)
+    found += check_kamernet(scraper)
+
+    if found:
+        for title, price, link, source in found:
+            print(f"Found [{source}] {title} | {price}")
+            send(title, price, link, source)
+    else:
+        print("No new listings found this cycle.")
+
+if __name__ == "__main__":
+    main()
