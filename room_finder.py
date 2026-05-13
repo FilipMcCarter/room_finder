@@ -9,7 +9,7 @@ import json
 PARARIUS_URL = "https://www.pararius.com/apartments/eindhoven/0-800"
 KAMERNET_URL = "https://kamernet.nl/en/for-rent/room-eindhoven"
  
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504047942401790012/YJV4UgJRrXh_ah90e4cBNGn5JNatOWAV0Dho5k5GRXZKjNEw8XSEHCCBDwdOWUjxzwda"
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
 if not DISCORD_WEBHOOK:
     print("Error: DISCORD_WEBHOOK environment variable not set.")
     sys.exit(1)
