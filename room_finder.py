@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
+import os
+# Force Python to print logs immediately in Render
+os.environ["PYTHONUNBUFFERED"] = "1"
+
 import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 import time
-import os
-#we act as a web service to get the free tier functional 
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -24,13 +27,16 @@ threading.Thread(target=run_server, daemon=True).start()
 PARARIUS_URL = "https://www.pararius.com/rooms/eindhoven/0-800"
 KAMERNET_URL = "https://kamernet.nl/en/for-rent/rooms-eindhoven"
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/XXXXX/YYYYY"  # <-- PUT YOUR WEBHOOK
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/XXXXX/YYYYY"  # <-- MAKE SURE THIS IS YOUR REAL WEBHOOK
 
 SEEN_FILE = "seen_links.txt"
+
+# Create a scraper that bypasses basic Cloudflare/bot protections
+scraper = cloudscraper.create_scraper(browser={
+    'browser': 'chrome',
+    'platform': 'windows',
+    'desktop': True
+})
 
 # -------- LOAD SEEN --------
 if os.path.exists(SEEN_FILE):
@@ -46,18 +52,27 @@ def save_link(link):
 
 # -------- DISCORD --------
 def send(title, price, link, source):
-    msg = f"**{source}**\n{title}\n💶 {price}\n{link}"
+    msg = f"**{source}**\n{title}\nPrice: {price}\n{link}"
     try:
-        requests.post(DISCORD_WEBHOOK, json={"content": msg})
+        res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
+        if res.status_code == 204:
+            print(f"Successfully sent to Discord: {title}")
+        else:
+            print(f"Discord error: {res.status_code} - {res.text}")
     except Exception as e:
-        print("Discord error:", e)
+        print(f"Discord exception: {e}")
 
 # -------- PARARIUS --------
 def check_pararius():
     new_items = []
-    res = requests.get(PARARIUS_URL, headers=HEADERS)
-    soup = BeautifulSoup(res.text, "html.parser")
+    print("Checking Pararius...")
+    res = scraper.get(PARARIUS_URL)
+    
+    if res.status_code != 200:
+        print(f"Pararius blocked the request! Status Code: {res.status_code}")
+        return new_items
 
+    soup = BeautifulSoup(res.text, "html.parser")
     listings = soup.select(".listing-search-item")
 
     for item in listings:
@@ -84,9 +99,14 @@ def check_pararius():
 # -------- KAMERNET --------
 def check_kamernet():
     new_items = []
-    res = requests.get(KAMERNET_URL, headers=HEADERS)
-    soup = BeautifulSoup(res.text, "html.parser")
+    print("Checking Kamernet...")
+    res = scraper.get(KAMERNET_URL)
+    
+    if res.status_code != 200:
+        print(f"Kamernet blocked the request! Status Code: {res.status_code}")
+        return new_items
 
+    soup = BeautifulSoup(res.text, "html.parser")
     listings = soup.select("a[href*='/details/']")
 
     for item in listings[:10]:
@@ -118,16 +138,13 @@ while True:
 
         if found:
             for title, price, link, source in found:
-                print(f"[{source}] {title} | {price}")
-                print(link)
-                print("-" * 40)
-
+                print(f"Found [{source}] {title} | {price}")
                 send(title, price, link, source)
                 time.sleep(1)
         else:
-            print("No new listings")
+            print("No new listings found this cycle.")
 
     except Exception as e:
-        print("Error:", e)
+        print(f"Major Error: {e}")
 
     time.sleep(180)
