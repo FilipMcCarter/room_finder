@@ -56,20 +56,31 @@ def send(title, price, link, source):
     try:
         res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
         if res.status_code == 204:
-            print(f"Successfully sent to Discord: {title}")
+            print(f"Successfully sent to Discord: {title}", flush=True)
         else:
-            print(f"Discord error: {res.status_code} - {res.text}")
+            print(f"Discord error: {res.status_code} - {res.text}", flush=True)
     except Exception as e:
-        print(f"Discord exception: {e}")
+        print(f"Discord exception: {e}", flush=True)
+
+def send_test_message():
+    try:
+        msg = "Bot successfully started on Render! (v2)"
+        res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
+        if res.status_code == 204:
+            print("Test message successfully sent to Discord.", flush=True)
+        else:
+            print(f"Failed to send test message. Status: {res.status_code}", flush=True)
+    except Exception as e:
+        print(f"Test message exception: {e}", flush=True)
 
 # -------- PARARIUS --------
 def check_pararius():
     new_items = []
-    print("Checking Pararius...")
+    print("Checking Pararius...", flush=True)
     res = scraper.get(PARARIUS_URL)
     
     if res.status_code != 200:
-        print(f"Pararius blocked the request! Status Code: {res.status_code}")
+        print(f"Pararius blocked the request! Status Code: {res.status_code}", flush=True)
         return new_items
 
     soup = BeautifulSoup(res.text, "html.parser")
@@ -99,11 +110,11 @@ def check_pararius():
 # -------- KAMERNET --------
 def check_kamernet():
     new_items = []
-    print("Checking Kamernet...")
+    print("Checking Kamernet...", flush=True)
     res = scraper.get(KAMERNET_URL)
     
     if res.status_code != 200:
-        print(f"Kamernet blocked the request! Status Code: {res.status_code}")
+        print(f"Kamernet blocked the request! Status Code: {res.status_code}", flush=True)
         return new_items
 
     soup = BeautifulSoup(res.text, "html.parser")
@@ -126,7 +137,8 @@ def check_kamernet():
     return new_items
 
 # -------- MAIN LOOP --------
-print("Bot started...")
+print("Bot script initialized. Sending test message...", flush=True)
+send_test_message()
 
 while True:
     try:
@@ -138,13 +150,13 @@ while True:
 
         if found:
             for title, price, link, source in found:
-                print(f"Found [{source}] {title} | {price}")
+                print(f"Found [{source}] {title} | {price}", flush=True)
                 send(title, price, link, source)
                 time.sleep(1)
         else:
-            print("No new listings found this cycle.")
+            print("No new listings found this cycle.", flush=True)
 
     except Exception as e:
-        print(f"Major Error: {e}")
+        print(f"Major Error: {e}", flush=True)
 
     time.sleep(180)
