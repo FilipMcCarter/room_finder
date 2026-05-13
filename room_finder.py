@@ -38,7 +38,16 @@ def send(title, price, link, source):
             print(f"Discord error: {res.status_code} - {res.text}")
     except Exception as e:
         print(f"Discord exception: {e}")
-
+def send_test_message():
+    try:
+        msg = "Bot successfully started on Render! (v2)"
+        res = requests.post(DISCORD_WEBHOOK, json={"content": msg})
+        if res.status_code == 204:
+            print("Test message successfully sent to Discord.", flush=True)
+        else:
+            print(f"Failed to send test message. Status: {res.status_code}", flush=True)
+    except Exception as e:
+        print(f"Test message exception: {e}", flush=True)
 # -------- PARARIUS --------
 def check_pararius(scraper):
     new_items = []
