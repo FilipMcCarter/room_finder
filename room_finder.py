@@ -104,6 +104,8 @@ def check_kamernet(scraper):
 
 # -------- MAIN EXECUTION --------
 def main():
+    print("Bot script initialized. Sending test message...", flush=True)
+    send_test_message()
     print("Initializing scraper...")
     try:
         scraper = cloudscraper.create_scraper(browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True})
