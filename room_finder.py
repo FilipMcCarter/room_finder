@@ -4,6 +4,21 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import os
+#we act as a web service to get the free tier functional 
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class DummyHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+def run_server():
+    server = HTTPServer(("0.0.0.0", 10000), DummyHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 
 # -------- CONFIG --------
 PARARIUS_URL = "https://www.pararius.com/rooms/eindhoven/0-800"
