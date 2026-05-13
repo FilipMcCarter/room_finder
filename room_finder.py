@@ -6,10 +6,10 @@ import sys
 import json
  
 # -------- CONFIG --------
-PARARIUS_URL = "https://www.pararius.com/room-for-rent/eindhoven/0-800"
+PARARIUS_URL = "https://www.pararius.com/apartments/eindhoven/0-800"
 KAMERNET_URL = "https://kamernet.nl/en/for-rent/room-eindhoven"
  
-DISCORD_WEBHOOK = os.environ.get("DISCORD_WEBHOOK")
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504047942401790012/YJV4UgJRrXh_ah90e4cBNGn5JNatOWAV0Dho5k5GRXZKjNEw8XSEHCCBDwdOWUjxzwda"
 if not DISCORD_WEBHOOK:
     print("Error: DISCORD_WEBHOOK environment variable not set.")
     sys.exit(1)
@@ -92,7 +92,7 @@ def check_pararius(scraper):
             continue
  
         href = title_tag.get("href", "")
-        link = "https://www.pararius.com" + href
+        link = "https://www.pararius.com" + title_tag.get("href", "")
         title = title_tag.get_text(strip=True)
         price = price_tag.get_text(strip=True)
  
