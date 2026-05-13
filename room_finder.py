@@ -1,20 +1,35 @@
+#!/usr/bin/env python3
+
 import requests
 from bs4 import BeautifulSoup
 import time
+import os
 
 # -------- CONFIG --------
 PARARIUS_URL = "https://www.pararius.com/rooms/eindhoven/0-800"
 KAMERNET_URL = "https://kamernet.nl/en/for-rent/rooms-eindhoven"
 
-DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504047942401790012/YJV4UgJRrXh_ah90e4cBNGn5JNatOWAV0Dho5k5GRXZKjNEw8XSEHCCBDwdOWUjxzwda"  # <-- PUT YOUR WEBHOOK HERE
+DISCORD_WEBHOOK = "https://discord.com/api/webhooks/XXXXX/YYYYY"  # <-- PUT YOUR WEBHOOK
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
-seen = set()
+SEEN_FILE = "seen_links.txt"
 
-# -------- DISCORD SEND --------
+# -------- LOAD SEEN --------
+if os.path.exists(SEEN_FILE):
+    with open(SEEN_FILE, "r") as f:
+        seen = set(line.strip() for line in f)
+else:
+    seen = set()
+
+# -------- SAVE LINK --------
+def save_link(link):
+    with open(SEEN_FILE, "a") as f:
+        f.write(link + "\n")
+
+# -------- DISCORD --------
 def send(title, price, link, source):
     msg = f"**{source}**\n{title}\n💶 {price}\n{link}"
     try:
@@ -41,12 +56,12 @@ def check_pararius():
         title = title_tag.get_text(strip=True)
         price = price_tag.get_text(strip=True)
 
-        # optional keyword filter (keeps rooms/studios relevant)
         if not any(k in title.lower() for k in ["room", "studio", "kamer"]):
             continue
 
         if link not in seen:
             seen.add(link)
+            save_link(link)
             new_items.append((title, price, link, "Pararius"))
 
     return new_items
@@ -59,11 +74,10 @@ def check_kamernet():
 
     listings = soup.select("a[href*='/details/']")
 
-    for item in listings[:10]:  # limit noise
+    for item in listings[:10]:
         link = "https://kamernet.nl" + item["href"]
         title = item.get_text(strip=True)
 
-        # basic filter
         if not any(k in title.lower() for k in ["room", "studio", "kamer"]):
             continue
 
@@ -71,6 +85,7 @@ def check_kamernet():
 
         if link not in seen:
             seen.add(link)
+            save_link(link)
             new_items.append((title, price, link, "Kamernet"))
 
     return new_items
@@ -93,12 +108,11 @@ while True:
                 print("-" * 40)
 
                 send(title, price, link, source)
-                time.sleep(1)  # avoid spam bursts
-
+                time.sleep(1)
         else:
             print("No new listings")
 
     except Exception as e:
         print("Error:", e)
-    requests.post(DISCORD_WEBHOOK, json={"content": "Bot test message"})
-    time.sleep(180)  # check every 3 minutes
+
+    time.sleep(180)
